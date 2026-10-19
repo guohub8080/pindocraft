@@ -1,0 +1,32 @@
+name: Deploy to Cloudflare Pages
+
+# 纯静态站（无构建链）：checkout 后把站点文件（排除仓库管线目录）直推
+# Cloudflare Pages（Direct Upload，项目已在面板建好）。
+# 将来加构建链：在 Stage 前插入 install/build，并把 rsync 整段换成
+# `wrangler pages deploy <产物目录>`。
+# secrets 未配置时 deploy 步骤自动跳过（配好即生效，不红灯）。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 站点源文件原样进 dist（.git/.github 等仓库管线不入产物）
+      - name: Stage site files
+        run: |
+          mkdir -p dist
+          rsync -a --exclude='.git' --exclude='.github' --exclude='dist' ./ dist/
+
+      - name: Deploy to Cloudflare Pages
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
+        run: npx --yes wrangler@4 pages deploy dist --project-name=pindocraft --branch=main --commit-dirty=true
