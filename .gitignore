@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Reference artifacts, local only
+.reference/
